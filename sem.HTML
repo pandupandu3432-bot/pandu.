@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Semester Marksheet</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="sheet">
+
+  <div class="letterhead">
+    <div class="eyebrow">Semester VI &middot; Statement of Marks</div>
+    <h1>Student Result Sheet</h1>
+    <div class="sub">NINE SUBJECTS &nbsp;/&nbsp; INTERNAL 30 + EXTERNAL 70 = 100 &nbsp;/&nbsp; PASS MARK 33</div>
+    <div class="rule"></div>
+  </div>
+
+  <div class="card">
+    <div class="roll-row">
+      <div>
+        <label for="studentName">Student Name</label>
+        <input type="text" id="studentName" placeholder="Full name">
+      </div>
+      <div>
+        <label for="rollNo">Roll No.</label>
+        <input type="text" id="rollNo" placeholder="e.g. 2026-CS-014">
+      </div>
+    </div>
+
+    <table class="marks">
+      <thead>
+        <tr>
+          <th style="width:26px;">#</th>
+          <th>Subject</th>
+          <th class="num" style="width:74px;">Internal /30</th>
+          <th class="num" style="width:74px;">External /70</th>
+          <th class="num" style="width:64px;">Total /100</th>
+          <th class="num" style="width:48px;">Grade</th>
+        </tr>
+      </thead>
+      <tbody id="subjectRows"></tbody>
+    </table>
+
+    <div class="actions">
+      <button class="compute" id="computeBtn">Compute Result</button>
+    </div>
+  </div>
+
+  <div class="result" id="resultBlock">
+    <div class="result-grid">
+      <div>
+        <div class="stat">
+          <div class="stat-label">Student</div>
+          <div class="stat-value" id="studentDisplay">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Total Marks</div>
+          <div class="stat-value" id="totalMarks">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Percentage</div>
+          <div class="stat-value" id="percentValue">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Overall Grade</div>
+          <div class="stat-value" id="overallGrade">—</div>
+        </div>
+      </div>
+      <div class="stamp" id="stampSeal">
+        <div class="stamp-text" id="stampText">—</div>
+      </div>
+    </div>
+    <div class="grade-legend">O ≥90 &nbsp;·&nbsp; A+ ≥80 &nbsp;·&nbsp; A ≥70 &nbsp;·&nbsp; B ≥60 &nbsp;·&nbsp; C ≥50 &nbsp;·&nbsp; D ≥33 &nbsp;·&nbsp; F &lt;33</div>
+
+    <div class="roster-actions">
+      <button class="ghost" id="addNextBtn">Save &amp; Add Next Student</button>
+    </div>
+  </div>
+
+  <div class="class-list" id="classList">
+    <h2>All Students</h2>
+    <span class="sub">CLASS RESULT SUMMARY</span>
+    <div class="class-list-wrap">
+      <table class="roster">
+        <thead>
+          <tr>
+            <th style="width:26px;">#</th>
+            <th>Name</th>
+            <th>Roll No.</th>
+            <th class="num">Total</th>
+            <th class="num">Percentage</th>
+            <th class="num">Grade</th>
+            <th class="num">Status</th>
+          </tr>
+        </thead>
+        <tbody id="rosterRows"></tbody>
+      </table>
+    </div>
+    <div class="roster-actions">
+      <button class="ghost" id="clearRosterBtn">Clear All Students</button>
+    </div>
+  </div>
+
+  <footer>Nine-Subject Semester Marksheet &middot; Internal + External &middot; generated in your browser, no data leaves this page</footer>
+
+</div>
+
+<script>
+  const defaultSubjects = [
+    "Subject 1", "Subject 2", "Subject 3",
+    "Subject 4", "Subject 5", "Subject 6",
+    "Subject 7", "Subject 8", "Subject 9"
+  ];
+
+  const rowsBody = document.getElementById('subjectRows');
+
+  defaultSubjects.forEach((name, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="subj-index">${String(i+1).padStart(2,'0')}</td>
+      <td><input type="text" class="subjName" value="${name}" placeholder="Subject name"></td>
+      <td class="num"><input type="number" class="internalMark" min="0" max="30" placeholder="0"></td>
+      <td class="num"><input type="number" class="externalMark" min="0" max="70" placeholder="0"></td>
+      <td class="total-cell" data-role="rowTotal">0</td>
+      <td class="grade-cell" data-role="rowGrade">—</td>
+    `;
+    rowsBody.appendChild(tr);
+  });
+
+  function gradeFor(mark){
+    if (mark >= 90) return { g:'O',  ok:true  };
+    if (mark >= 80) return { g:'A+', ok:true  };
+    if (mark >= 70) return { g:'A',  ok:true  };
+    if (mark >= 60) return { g:'B',  ok:true  };
+    if (mark >= 50) return { g:'C',  ok:true  };
+    if (mark >= 33) return { g:'D',  ok:true  };
+    return { g:'F', ok:false };
+  }
+
+  const roster = [];
+
+  function computeResult(){
+    const rows = document.querySelectorAll('#subjectRows tr');
+
+    let grandTotal = 0;
+    let anyFail = false;
+
+    rows.forEach(row => {
+      const intInput = row.querySelector('.internalMark');
+      const extInput = row.querySelector('.externalMark');
+      const totalCell = row.querySelector('[data-role="rowTotal"]');
+      const gradeCell = row.querySelector('[data-role="rowGrade"]');
+
+      let intVal = parseFloat(intInput.value);
+      let extVal = parseFloat(extInput.value);
+      if (isNaN(intVal)) intVal = 0;
+      if (isNaN(extVal)) extVal = 0;
+      intVal = Math.max(0, Math.min(30, intVal));
+      extVal = Math.max(0, Math.min(70, extVal));
+      intInput.value = intVal;
+      extInput.value = extVal;
+
+      const subjTotal = intVal + extVal;
+      totalCell.textContent = subjTotal;
+
+      grandTotal += subjTotal;
+      const { g, ok } = gradeFor(subjTotal);
+      gradeCell.textContent = g;
+      if (!ok) anyFail = true;
+    });
+
+    const maxTotal = rows.length * 100;
+    const percent = (grandTotal / maxTotal) * 100;
+    const overall = gradeFor(percent);
+    const passed = !anyFail;
+
+    const name = document.getElementById('studentName').value.trim();
+    const roll = document.getElementById('rollNo').value.trim();
+    document.getElementById('studentDisplay').textContent =
+      (name || roll) ? `${name || '—'}${roll ? ' · ' + roll : ''}` : '—';
+
+    document.getElementById('totalMarks').textContent = `${grandTotal} / ${maxTotal}`;
+    document.getElementById('percentValue').textContent = `${percent.toFixed(2)}%`;
+    document.getElementById('overallGrade').textContent = overall.g;
+
+    const stamp = document.getElementById('stampSeal');
+    const stampText = document.getElementById('stampText');
+
+    stamp.classList.remove('pass','fail');
+    stamp.classList.add(passed ? 'pass' : 'fail');
+    stampText.innerHTML = passed ? 'PASSED' : 'FAILED';
+
+    const resultBlock = document.getElementById('resultBlock');
+    resultBlock.classList.add('show');
+    resultBlock.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+    return {
+      name: name || '—',
+      roll: roll || '—',
+      total: grandTotal,
+      maxTotal,
+      percent,
+      grade: overall.g,
+      passed
+    };
+  }
+
+  function renderRoster(){
+    const body = document.getElementById('rosterRows');
+    body.innerHTML = '';
+    roster.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${String(i+1).padStart(2,'0')}</td>
+        <td>${r.name}</td>
+        <td class="mono">${r.roll}</td>
+        <td class="num mono">${r.total} / ${r.maxTotal}</td>
+        <td class="num mono">${r.percent.toFixed(2)}%</td>
+        <td class="num mono">${r.grade}</td>
+        <td class="num"><span class="status-pill ${r.passed ? 'pass' : 'fail'}">${r.passed ? 'Pass' : 'Fail'}</span></td>
+      `;
+      body.appendChild(tr);
+    });
+    document.getElementById('classList').classList.add('show');
+  }
+
+  function clearFormForNext(){
+    document.getElementById('studentName').value = '';
+    document.getElementById('rollNo').value = '';
+    document.querySelectorAll('.internalMark, .externalMark').forEach(inp => inp.value = '');
+    document.querySelectorAll('[data-role="rowTotal"]').forEach(c => c.textContent = '0');
+    document.querySelectorAll('[data-role="rowGrade"]').forEach(c => c.textContent = '—');
+    document.getElementById('resultBlock').classList.remove('show');
+    document.getElementById('studentName').focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.getElementById('computeBtn').addEventListener('click', () => {
+    computeResult();
+  });
+
+  document.getElementById('addNextBtn').addEventListener('click', () => {
+    const record = computeResult();
+    roster.push(record);
+    renderRoster();
+    clearFormForNext();
+  });
+
+  document.getElementById('clearRosterBtn').addEventListener('click', () => {
+    roster.length = 0;
+    renderRoster();
+    document.getElementById('classList').classList.remove('show');
+  });
+</script>
+
+</body>
+</html>
